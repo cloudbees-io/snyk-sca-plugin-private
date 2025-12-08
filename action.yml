@@ -76,7 +76,7 @@ runs:
 
 
     - name: Run Snyk SCA plugin
-      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-snyk-sca-scanner:latest
+      uses: 020229604682.dkr.ecr.us-east-1.amazonaws.com/actions/assets-snyk-sca-scanner:latest
       env:
         SNYK_SCA_PROPS: '{"accessToken": "${{ inputs.snyk-token }}", "orgName": "${{ inputs.org-id }}", "severityThreshold": "${{ inputs.severity-threshold }}", "cliParams": "${{ inputs.cli-params }}"}'
         RUN_ID: ${{ cloudbees.run_id }}
