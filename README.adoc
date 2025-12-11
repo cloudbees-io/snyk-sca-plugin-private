@@ -29,7 +29,6 @@ The Snyk SCA scanner architectural components are:
 * Snyk CLI: The command-line interface that performs the scanning.
 * Snyk Vulnerability Database: Comprehensive database of known vulnerabilities in open source packages.
 * Snyk Policy Engine: Evaluates dependencies against security rules and license policies.
-* Snyk API: Communicates scan results to the Snyk platform for centralized management.
 
 The scanning process is as follows:
 
@@ -37,7 +36,6 @@ The scanning process is as follows:
 . Dependencies are parsed and analyzed against Snyk's vulnerability database.
 . Security vulnerabilities and license issues are identified based on known CVEs and security advisories.
 . Results are reported with severity levels, detailed descriptions, and remediation guidance.
-. The scan results are uploaded to the Snyk platform (if configured).
 . Results are made available as actionable outputs for quality gates and downstream workflow steps.
 
 NOTE: For more information about Snyk SCA, refer to the link:https://docs.snyk.io/products/snyk-open-source[Snyk Open Source documentation].
@@ -239,47 +237,6 @@ jobs:
           org-id: ${{ vars.SNYK_ORG_ID }}
           ref: main
           cli-params: --all-projects
-
-----
-
-=== Using optional parameters
-
-The following example demonstrates using optional parameters including `workspace-dir`, `cli-params`, and `build-directory`:
-
-[source, yaml,role="default-expanded"]
-----
-name: snyk-sca-scan-with-options
-kind: workflow
-apiVersion: automation.cloudbees.io/v1alpha1
-
-on:
-  push:
-    branches:
-      - main
-
-permissions:
-  scm-token-own: read
-  scm-token-org: read
-  id-token: write
-
-jobs:
-  snyk-sca-scan:
-    steps:
-      - name: Check Out Source Code
-        uses: cloudbees-io/checkout@v1
-
-      - name: Snyk SCA Scan With Optional Parameters
-        uses: cloudbees-io/snyk-sca-plugin-private@v1
-        with:
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
-          org-id: ${{ vars.SNYK_ORG_ID }}
-          ref: main
-          # Specify custom workspace directory to store the code
-          workspace-dir: /custom/workspace/dir
-          # Pass additional CLI parameters to Snyk
-          cli-params: --all-projects --json
-          # Specify the directory containing build files
-          build-directory: app
 
 ----
 
