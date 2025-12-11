@@ -1,0 +1,97 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: action
+name: snyk-sca-plugin
+inputs:
+  snyk-token:
+    description: 'Snyk API token for authentication'
+    required: true
+  org-id:
+    description: 'Snyk organization ID'
+    required: true
+  cli-params:
+    description: 'Command line params for snyk open source scan'
+    required: false
+  build-directory:
+    description: 'Build directory that holds the build tools'
+    required: false
+  ref:
+    description: 'Flag to indicate the ref that should be archived (same as supplied to checkout)'
+    required: false
+    default: ''
+  workspace-dir:
+    description: 'Flag to mention the path where the checked out code will be present'
+    required: false
+    default: ''
+outputs:
+  critical-count:
+    description: A string containing the number of Critical security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.critical-count}}
+  very-high-count:
+    description: A string containing the number of Very High security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.very-high-count}}
+  high-count:
+    description: A string containing the number of High security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.high-count}}
+  medium-count:
+    description: A string containing the number of Medium security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.medium-count}}
+  low-count:
+    description: A string containing the number of Low security findings discovered during the scan.
+    value: ${{steps.process-outputs.outputs.low-count}}
+
+runs:
+  using: composite
+  steps:
+    - name: Generate sha and ref
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:1f95fd45dd03fa6f363ff95cb20142fe4b7d83c4
+      with:
+        entrypoint: assets-plugin-chain-utils
+        args: get-commit-info
+      env:
+        INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
+        INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
+        INPUT_RUN_ID: ${{ cloudbees.run_id }}
+        INPUT_CLOUDBEES_EVENT_PATH: /cloudbees/event.json
+        INPUT_REF: ${{ inputs.ref }}
+        INPUT_WORKSPACE_DIR: ${{ inputs.workspace-dir }}
+
+    - name: Generate reference files
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:1f95fd45dd03fa6f363ff95cb20142fe4b7d83c4
+      with:
+        entrypoint: assets-plugin-chain-utils
+        args: generate-references --asset-type "CODE"
+      env:
+        INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
+        INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
+        INPUT_RUN_ID: ${{ cloudbees.run_id }}
+
+    - name: Run SCC Scan for tag generation
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-scc-scanner:9393ab805bb706c829c471e1dfc8e6ee73541253
+      continue-on-error: true
+      env:
+        RUN_ID: ${{ cloudbees.run_id }}
+        JOB_ID: ${{ job.id }}
+        STEP_ID: ${{ step.internal.id }}
+      run: /app/plugin-scc-scanner -mode single
+
+
+    - name: Run Snyk SCA plugin
+      uses: docker://020229604682.dkr.ecr.us-east-1.amazonaws.com/actions/assets-snyk-sca-scanner:latest
+      env:
+        SNYK_SCA_PROPS: '{"accessToken": "${{ inputs.snyk-token }}", "orgName": "${{ inputs.org-id }}", "buildDirectory": "${{ inputs.build-directory }}", "cliParams": "${{ inputs.cli-params }}"}'
+        RUN_ID: ${{ cloudbees.run_id }}
+        JOB_ID: ${{ job.id }}
+        STEP_ID: ${{ step.internal.id }}
+
+      run: /app/plugin-snyk-sca-scanner -mode single
+
+    - name: Complete execution plan
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:1f95fd45dd03fa6f363ff95cb20142fe4b7d83c4
+      id: process-outputs
+      with:
+        entrypoint: assets-plugin-chain-utils
+        args: process-outputs
+      env:
+        INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
+        INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
+        INPUT_RUN_ID: ${{ cloudbees.run_id }}
