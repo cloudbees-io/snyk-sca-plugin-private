@@ -66,12 +66,12 @@ NOTE: For more information about Snyk SCA, refer to the link:https://docs.snyk.i
 | `cli-params`
 | String
 | No
-| The Snyk SCA cli params.
+| Additional CLI parameters to pass to the Snyk CLI.
 
 | `build-directory`
 | String
 | No
-| The directory holding build tool.
+| The directory containing the build tool.
 
 | `ref`
 | String
@@ -125,29 +125,11 @@ The following is a basic usage example for this action:
 
 [source,yaml]
 ----
-
       - name: Scan with Snyk SCA
         uses: cloudbees-io/snyk-sca-plugin-private@v1
         with:
           snyk-token: ${{ secrets.SNYK_TOKEN }}
           org-id: ${{ vars.SNYK_ORG_ID }}
-          ref: main
-
-----
-
-=== Using severity threshold
-
-In the following example, the scan will only report issues of high or critical severity:
-
-[source,yaml]
-----
-
-      - name: Scan with Snyk SCA with severity threshold
-        uses: cloudbees-io/snyk-sca-plugin-private@v1
-        with:
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
-          org-id: ${{ vars.SNYK_ORG_ID }}
-          severity-threshold: 'high'
           ref: main
 
 ----
@@ -158,7 +140,6 @@ The following CloudBees platform workflow example scans a Node.js project with S
 
 [source, yaml,role="default-expanded"]
 ----
-
 name: snyk-sca-scan
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
@@ -194,7 +175,6 @@ The following CloudBees platform workflow example scans a Java Maven project wit
 
 [source, yaml,role="default-expanded"]
 ----
-
 name: snyk-sca-scan
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
@@ -220,7 +200,8 @@ jobs:
         with:
           snyk-token: ${{ secrets.SNYK_TOKEN }}
           org-id: ${{ vars.SNYK_ORG_ID }}
-          severity-threshold: 'medium'
+          cli-params: --all-projects -- -s /cloudbees/workspace/settings.xml
+          build-directory: app
           ref: main
 
 ----
@@ -231,7 +212,6 @@ The following CloudBees platform workflow example scans a Python project with Sn
 
 [source, yaml,role="default-expanded"]
 ----
-
 name: snyk-sca-scan
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
@@ -258,6 +238,48 @@ jobs:
           snyk-token: ${{ secrets.SNYK_TOKEN }}
           org-id: ${{ vars.SNYK_ORG_ID }}
           ref: main
+          cli-params: --all-projects
+
+----
+
+=== Using optional parameters
+
+The following example demonstrates using optional parameters including `workspace-dir`, `cli-params`, and `build-directory`:
+
+[source, yaml,role="default-expanded"]
+----
+name: snyk-sca-scan-with-options
+kind: workflow
+apiVersion: automation.cloudbees.io/v1alpha1
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  scm-token-own: read
+  scm-token-org: read
+  id-token: write
+
+jobs:
+  snyk-sca-scan:
+    steps:
+      - name: Check Out Source Code
+        uses: cloudbees-io/checkout@v1
+
+      - name: Snyk SCA Scan With Optional Parameters
+        uses: cloudbees-io/snyk-sca-plugin-private@v1
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org-id: ${{ vars.SNYK_ORG_ID }}
+          ref: main
+          # Specify custom workspace directory to store the code
+          workspace-dir: /custom/workspace/dir
+          # Pass additional CLI parameters to Snyk
+          cli-params: --all-projects --json
+          # Specify the directory containing build files
+          build-directory: app
 
 ----
 
@@ -276,8 +298,7 @@ The following example uses the action output in a downstream step of the same jo
 
 [source,yaml,role="default-expanded"]
 ----
-
-name: my-workflow
+name: snyk-sca-with-downstream-step
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
 
@@ -294,28 +315,28 @@ permissions:
 jobs:
   snyk-sca-scan-job:
     steps:
-      - name: check out source code
+      - name: Check Out Source Code
         uses: cloudbees-io/checkout@v1
 
       - id: snyk-sca-step
-        name: snyk sca scan
+        name: Snyk SCA Scan
         uses: cloudbees-io/snyk-sca-plugin-private@v1
         with:
           snyk-token: ${{ secrets.SNYK_TOKEN }}
           org-id: ${{ vars.SNYK_ORG_ID }}
           ref: main
 
-      - name: source dir examine
+      - name: Examine Source Directory
         uses: docker://golang:1.20.3-alpine3.17
         shell: sh
         run: |
           ls -latR /cloudbees/workspace
 
       - id: print-outputs-from-snyk-sca-step
-        name: print outputs from upstream snyk sca step
+        name: Print Outputs From Upstream Snyk SCA Step
         uses: docker://alpine:latest
         run: |
-            #printing all outputs
+            # Printing all outputs
             echo "Outputs from upstream Snyk SCA step:"
             echo "Critical count: ${{steps.snyk-sca-step.outputs.critical-count}}"
             echo "Very high count: ${{steps.snyk-sca-step.outputs.very-high-count}}"
@@ -330,8 +351,7 @@ The following example uses the action output in a downstream job:
 
 [source,yaml,role="default-expanded"]
 ----
-
-name: my-workflow
+name: snyk-sca-with-downstream-job
 kind: workflow
 apiVersion: automation.cloudbees.io/v1alpha1
 
@@ -354,7 +374,7 @@ jobs:
       snyk-sca-job-output-medium: ${{ steps.snyk-sca-step.outputs.medium-count }}
       snyk-sca-job-output-low: ${{ steps.snyk-sca-step.outputs.low-count }}
     steps:
-      - name: check out source code
+      - name: Check Out Source Code
         uses: cloudbees-io/checkout@v1
         with:
           repository: my-gh-repo-org/my-repo
@@ -362,19 +382,18 @@ jobs:
           token: ${{ secrets.GIT_PAT }}
 
       - id: snyk-sca-step
-        name: snyk sca scan
+        name: Snyk SCA Scan
         uses: cloudbees-io/snyk-sca-plugin-private@v1
         with:
           snyk-token: ${{ secrets.SNYK_TOKEN }}
           org-id: ${{ vars.SNYK_ORG_ID }}
           ref: main
-          severity-threshold: 'high'
 
   job2:
     needs: job1
     steps:
       - id: print-outputs-from-job1
-        name: print outputs from upstream job1
+        name: Print Outputs From Upstream Job1
         uses: docker://alpine:latest
         run: |
           # Printing all outputs
