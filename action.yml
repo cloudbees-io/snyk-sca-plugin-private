@@ -11,8 +11,8 @@ inputs:
   cli-params:
     description: 'Snyk SCA cli params'
     required: false
-  severity-threshold:
-    description: 'Severity threshold for scan results (low, medium, high, critical)'
+  build-directory:
+    description: 'Source directory holding build tool'
     required: false
   ref:
     description: 'Flag to indicate the ref that should be archived (same as supplied to checkout)'
@@ -77,8 +77,13 @@ runs:
 
     - name: Run Snyk SCA plugin
       uses: docker://020229604682.dkr.ecr.us-east-1.amazonaws.com/actions/assets-snyk-sca-scanner:latest
+      with:
+        volumes:
+          - ${{ inputs.workspace-dir }}/settings.xml:/tmp/settings.xml
       env:
-        SNYK_SCA_PROPS: '{"accessToken": "${{ inputs.snyk-token }}", "orgName": "${{ inputs.org-id }}", "severityThreshold": "${{ inputs.severity-threshold }}", "cliParams": "${{ inputs.cli-params }}"}'
+        CLOUDBEES_WORKSPACE: ${{ inputs.workspace-dir }}
+        INPUT_WORKSPACE_DIR: ${{ inputs.workspace-dir }}
+        SNYK_SCA_PROPS: '{"accessToken": "${{ inputs.snyk-token }}", "orgName": "${{ inputs.org-id }}", "buildDirectory": "${{ inputs.build-directory }}", "cliParams": "${{ inputs.cli-params }}"}'
         RUN_ID: ${{ cloudbees.run_id }}
         JOB_ID: ${{ job.id }}
         STEP_ID: ${{ step.internal.id }}

@@ -68,10 +68,10 @@ NOTE: For more information about Snyk SCA, refer to the link:https://docs.snyk.i
 | No
 | The Snyk SCA cli params.
 
-| `severity-threshold`
+| `build-directory`
 | String
 | No
-| Report only vulnerabilities of provided level or higher (low, medium, high, critical).
+| The directory holding build tool.
 
 | `ref`
 | String
